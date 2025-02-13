@@ -1,5 +1,5 @@
 openai
 pinecone-client
-langchain
 python-dotenv
 PyPDF2
+streamlit
