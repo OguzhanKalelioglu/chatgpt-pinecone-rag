@@ -20,12 +20,12 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")     # OPEN AI API_KEY
 # Pinecone ayarları (Burayı değiştirmiyoruz)
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY") # app.pinecone.io API_KEY
 PINECONE_ENV = os.environ.get("PINECONE_ENV")         # us-east-1
-INDEX_NAME = os.environ.get("INDEX_NAME")             # EKER
+INDEX_NAME = os.environ.get("INDEX_NAME")             # eker
 
 # Pinecone Client - 2.0
 pc = Pinecone(api_key=PINECONE_API_KEY)
 spec = ServerlessSpec(cloud="aws", region=PINECONE_ENV)
-EMBED_DIM = 1536  # text-embedding-3-small
+EMBED_DIM = 3072  # text-embedding-3-large
 
 # Index var mı? Yoksa Oluştur
 if INDEX_NAME not in pc.list_indexes().names():
@@ -71,7 +71,7 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
     """
     response = openai.Embedding.create(
         input=texts,
-        model="text-embedding-3-small"
+        model="text-embedding-3-large"
     )
     
     # response["data"], her bir metin için embedding döndürür
@@ -130,7 +130,7 @@ def main():
         st.markdown("---")
         st.markdown("### Sistem Bilgileri")
         st.info("""
-        - Model: text-embedding-3-small
+        - Model: text-embedding-3-large
         - Vectorel Veritabanı: Pinecone
         - Chunk Boyutu: 500 karakter
         """)
