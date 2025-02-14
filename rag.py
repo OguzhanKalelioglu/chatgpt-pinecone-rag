@@ -8,7 +8,7 @@ import openai
 from dotenv import load_dotenv
 
 # .env dosyasını yükle
-load_dotenv() 
+load_dotenv()
 
 ############################
 # 1. AYARLAR
@@ -73,7 +73,7 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
         input=texts,
         model="text-embedding-3-large"
     )
-    
+
     # response["data"], her bir metin için embedding döndürür
     embeddings = [res["embedding"] for res in response["data"]]
     return embeddings
@@ -83,7 +83,6 @@ def upsert_chunks_to_pinecone(chunks: list[str], metadata: dict):
     Chunkları Pinecone'a vektör olarak yükler.
     """
     embeddings = get_embeddings(chunks)
-    
 
     # Pinecone'a upsert için hazırlık
     to_upsert = []
@@ -137,82 +136,125 @@ def main():
 
     # Ana içerik
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         st.title("📚 EKER RAG Sistemi")
         st.markdown("""
-        Bu sistem, PDF dosyalarınızı:
-        1. Parçalara ayırır
+        Bu sistem, PDF dosyalarınızı ve kısa metinlerinizi:
+        1. Parçalara ayırır (PDF için)
         2. OpenAI Embedding modeliyle vektöre çevirir
         3. Pinecone veritabanına kaydeder
         """)
 
-    # PDF Yükleme Bölümü
-    st.markdown("### 📂 PDF Yükleme")
-    pdf_file = st.file_uploader(
-        "PDF dosyanızı sürükleyip bırakın veya 'Browse files' butonuna tıklayın",
-        type=["pdf"],
-        help="Maksimum dosya boyutu: 200MB"
-    )
+        # Sekmeleri Oluştur
+        tabs = st.tabs(["📂 PDF Yükleme", "✏️ Kısa Veri Girişi"]) # Sekme başlıkları
 
-    if pdf_file is not None:
-        # İşlem Adımları
-        st.markdown("### 🔄 İşlem Adımları")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # PDF Bilgileri
-            text = pdf_to_text(pdf_file)
-            st.metric(
-                label="PDF Metin Uzunluğu",
-                value=f"{len(text)} karakter"
+        # 1. SEKME: PDF Yükleme
+        with tabs[0]: # İlk sekme (index 0) "PDF Yükleme" sekmesi olacak
+            # PDF Yükleme Bölümü (Mevcut PDF Yükleme Bölümü kodunu buraya taşıyın)
+            pdf_file = st.file_uploader(
+                "PDF dosyanızı sürükleyip bırakın veya 'Browse files' butonuna tıklayın",
+                type=["pdf"],
+                help="Maksimum dosya boyutu: 200MB"
             )
 
-        with col2:
-            # Chunk Bilgileri
-            chunks = chunk_text(text)
-            st.metric(
-                label="Oluşturulan Parça Sayısı",
-                value=f"{len(chunks)} chunk"
+            if pdf_file is not None:
+                # İşlem Adımları (PDF) - önceki kodun PDF işlem adımları bölümü
+                st.markdown("### 🔄 İşlem Adımları (PDF)")
+                col1_pdf, col2_pdf = st.columns(2) # Sekme içindeki sütunları col1 ve col2 ile karıştırmamak için _pdf ekledim
+
+                with col1_pdf:
+                    # PDF Bilgileri - önceki kodun PDF bilgileri bölümü
+                    text = pdf_to_text(pdf_file)
+                    st.metric(
+                        label="PDF Metin Uzunluğu",
+                        value=f"{len(text)} karakter"
+                    )
+
+                with col2_pdf:
+                    # Chunk Bilgileri - önceki kodun chunk bilgileri bölümü
+                    chunks = chunk_text(text)
+                    st.metric(
+                        label="Oluşturulan Parça Sayısı",
+                        value=f"{len(chunks)} chunk"
+                    )
+
+                # İşlem Butonu (PDF) - önceki kodun PDF işlem butonu bölümü
+                if st.button("📤 PDF'yi Pinecone'a Kaydet", help="Tıklayarak işlemi başlatın", key="pdf_button"):
+                    with st.status("PDF kaydediliyor...") as status: # Status mesajını güncelleyelim
+                        # İlerleme çubuğu
+                        progress_bar = st.progress(0)
+
+                        st.write("✨ PDF metin dönüşümü tamamlandı")
+                        progress_bar.progress(25)
+                        time.sleep(0.5)
+
+                        st.write("📝 Metin parçalara ayrılıyor...")
+                        progress_bar.progress(50)
+                        time.sleep(0.5)
+
+                        st.write("🔄 Embedding'ler oluşturuluyor...")
+                        progress_bar.progress(75)
+
+                        metadata = {
+                            "filename": pdf_file.name,
+                            "upload_date": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "chunk_count": len(chunks)
+                        }
+
+                        upsert_chunks_to_pinecone(chunks, metadata)
+                        progress_bar.progress(100)
+                        status.update(label="PDF başarıyla kaydedildi!", state="complete") # Status mesajını güncelleyelim
+
+                    st.success("✅ PDF başarıyla Pinecone'a yüklendi!")
+
+                    # İşlem Özeti (PDF) - önceki kodun PDF işlem özeti bölümü
+                    st.markdown("### 📊 İşlem Özeti (PDF)")
+                    st.json({
+                        "Dosya Adı": pdf_file.name,
+                        "Metin Uzunluğu": len(text),
+                        "Parça Sayısı": len(chunks),
+                        "Yükleme Tarihi": metadata["upload_date"]
+                    })
+
+
+        # 2. SEKME: Kısa Veri Girişi
+        with tabs[1]: # İkinci sekme (index 1) "Kısa Veri Girişi" sekmesi olacak
+            # KISA VERİ GİRİŞİ BÖLÜMÜ (Mevcut KISA VERİ GİRİŞİ BÖLÜMÜ kodunu buraya taşıyın)
+            short_text_input = st.text_area(
+                "Tek satırlık veya kısa metinlerinizi buraya girin",
+                height=100,
+                help="Örneğin: Eker Ayran 1 Litre fiyatı 15 TL'dir."
             )
 
-        # İşlem Butonu
-        if st.button("📤 PDF'yi Pinecone'a Kaydet", help="Tıklayarak işlemi başlatın"):
-            with st.status("İşlem devam ediyor...") as status:
-                # İlerleme çubuğu
-                progress_bar = st.progress(0)
-                
-                st.write("✨ PDF metin dönüşümü tamamlandı")
-                progress_bar.progress(25)
-                time.sleep(0.5)
-                
-                st.write("📝 Metin parçalara ayrılıyor...")
-                progress_bar.progress(50)
-                time.sleep(0.5)
-                
-                st.write("🔄 Embedding'ler oluşturuluyor...")
-                progress_bar.progress(75)
-                
-                metadata = {
-                    "filename": pdf_file.name,
-                    "upload_date": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "chunk_count": len(chunks)
-                }
-                
-                upsert_chunks_to_pinecone(chunks, metadata)
-                progress_bar.progress(100)
-                status.update(label="İşlem tamamlandı!", state="complete")
-                
-            st.success("✅ PDF başarıyla Pinecone'a yüklendi!")
-            
-            # İşlem Özeti
-            st.markdown("### 📊 İşlem Özeti")
-            st.json({
-                "Dosya Adı": pdf_file.name,
-                "Metin Uzunluğu": len(text),
-                "Parça Sayısı": len(chunks),
-                "Yükleme Tarihi": metadata["upload_date"]
-            })
+            if short_text_input:  # Eğer metin girilmişse
+                if st.button("Kaydet", key="short_text_button", help="Girilen metni Pinecone'a kaydetmek için tıklayın"):
+                    with st.status("Kısa veri kaydediliyor...") as status: # Status mesajını güncelleyelim
+                        progress_bar = st.progress(0)
+
+                        st.write("🔄 Embedding oluşturuluyor...")
+                        progress_bar.progress(50)
+
+                        metadata_short_text = {
+                            "filename": "kisa_veri_girisi",  # Dosya adı yerine 'kisa_veri_girisi' gibi genel bir isim
+                            "upload_date": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "chunk_count": 1  # Tek satır veri olduğu için chunk sayısı 1
+                        }
+                        # Chunking'i atlayarak doğrudan upsert ediyoruz
+                        upsert_chunks_to_pinecone([short_text_input], metadata_short_text)
+
+                        progress_bar.progress(100)
+                        status.update(label="Kısa veri başarıyla kaydedildi!", state="complete") # Status mesajını güncelleyelim
+                    st.success("✅ Kısa veri Pinecone'a başarıyla yüklendi!")
+
+                    # İşlem Özeti (Kısa Veri) - önceki kodun kısa veri işlem özeti bölümü
+                    st.markdown("### 📊 İşlem Özeti (Kısa Veri)")
+                    st.json({
+                        "Veri Tipi": "Kısa Metin Girişi",
+                        "Metin Uzunluğu": len(short_text_input),
+                        "Parça Sayısı": 1,
+                        "Yükleme Tarihi": metadata_short_text["upload_date"]
+                    })
 
 if __name__ == "__main__":
     main()
